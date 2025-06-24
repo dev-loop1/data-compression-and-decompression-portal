@@ -1,0 +1,35 @@
+# --- General ---
+.DS_Store
+*.log
+*.env
+
+# --- Python / Backend ---
+
+# Virtual Environment
+/backend/venv/
+__pycache__/
+*.pyc
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# --- Node / Frontend ---
+
+# Node modules
+/frontend/node_modules/
+
+# Build output
+/frontend/dist/
+/frontend/build/
+
+# Logs
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+
+# Local development config
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
