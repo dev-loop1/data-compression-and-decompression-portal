@@ -82,7 +82,7 @@ export default function App() {
         formData.append('file', selectedFile);
         formData.append('algorithm', algorithm);
 
-        const url = `http://localhost:5001/api/${mode}`;
+        const url = `https://data-compression-and-decompression-portal.onrender.com/${mode}`;
 
         try {
             const response = await axios.post(url, formData, {
