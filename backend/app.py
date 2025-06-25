@@ -12,7 +12,6 @@ from algorithms.huffman import huffman_compress, huffman_decompress
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-
 CORS(app, expose_headers=['Content-Disposition', 'X-Compression-Stats'])
 
 # --- API Endpoints ---
@@ -32,19 +31,18 @@ def compress_file():
     original_size = len(original_data)
     
     safe_filename = secure_filename(file.filename)
-    base_name, original_ext = os.path.splitext(safe_filename)
     
     start_time = time.time()
     
     try:
         if algorithm == 'rle':
             compressed_data = rle_compress(original_data)
+            output_filename = f"{safe_filename}.rle"
         elif algorithm == 'huffman':
             compressed_data = huffman_compress(original_data)
+            output_filename = f"{safe_filename}.huff"
         else:
             return jsonify({"error": "Unsupported algorithm"}), 400
-
-        output_filename = f"{base_name}_compressed_{algorithm}{original_ext}"
 
         end_time = time.time()
         
@@ -55,7 +53,8 @@ def compress_file():
             "originalSize": original_size,
             "compressedSize": compressed_size,
             "processingTime": round(processing_time, 2),
-            "compressionRatio": round((1 - compressed_size / original_size) * 100, 2) if original_size > 0 else 0
+            "compressionRatio": round((1 - compressed_size / original_size) * 100, 2) if original_size > 0 else 0,
+            "filename": output_filename 
         }
         
         response = send_file(
@@ -88,21 +87,35 @@ def decompress_file():
     safe_filename = secure_filename(file.filename)
     
     try:
-        output_filename = safe_filename.replace(f"_compressed_{algorithm}", "")
+        output_filename = ""
         
         if algorithm == 'rle':
+            if not safe_filename.endswith('.rle'):
+                 return jsonify({"error": "Invalid file: Expected a .rle extension."}), 400
             decompressed_data = rle_decompress(compressed_data)
+            output_filename = safe_filename.rsplit('.rle', 1)[0]
         elif algorithm == 'huffman':
+            if not safe_filename.endswith('.huff'):
+                 return jsonify({"error": "Invalid file: Expected a .huff extension."}), 400
             decompressed_data = huffman_decompress(compressed_data)
+            output_filename = safe_filename.rsplit('.huff', 1)[0]
         else:
             return jsonify({"error": "Unsupported algorithm"}), 400
 
-        return send_file(
+        if not output_filename:
+            output_filename = "decompressed_file"
+
+        stats = {"filename": output_filename}
+
+        response = send_file(
             io.BytesIO(decompressed_data),
             as_attachment=True,
             download_name=output_filename,
             mimetype='application/octet-stream'
         )
+        response.headers['X-Compression-Stats'] = json.dumps(stats)
+
+        return response
 
     except Exception as e:
         traceback.print_exc()

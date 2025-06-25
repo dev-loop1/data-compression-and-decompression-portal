@@ -20,11 +20,11 @@ const AlgorithmInfo = ({ algorithm }) => {
     const info = {
         'huffman': {
             name: 'Huffman Coding',
-            description: 'A lossless algorithm that assigns variable-length codes to characters based on their frequency. More common characters get shorter codes. Excellent for text files and is often used after an algorithm like LZ77.'
+            description: 'A lossless algorithm that assigns variable-length codes to characters based on their frequency. More common characters get shorter codes. Excellent for text files.'
         },
         'rle': {
             name: 'Run-Length Encoding (RLE)',
-            description: 'A simple lossless compression where runs of data (e.g., AAAA) are stored as a single value and count (4A). It is only effective for files with long sequences of repeating characters, like simple bitmap images.'
+            description: 'A simple lossless compression where runs of data (e.g., AAAA) are stored as a single value and count (4A). Only effective for files with long sequences of repeating characters.'
         }
     };
 
@@ -88,29 +88,22 @@ export default function App() {
             const response = await axios.post(url, formData, {
                 responseType: 'blob',
             });
+            
+            let filename = "downloaded_file";
+            const statsHeader = response.headers['x-compression-stats'];
 
-            if (mode === 'compress') {
-                const statsHeader = response.headers['x-compression-stats'];
-                if (statsHeader) {
-                    setStats(JSON.parse(statsHeader));
+            if (statsHeader) {
+                const parsedStats = JSON.parse(statsHeader);
+                setStats(parsedStats);
+                
+                if (parsedStats.filename) {
+                    filename = parsedStats.filename;
                 }
-            } else {
-                 setStats({ action: 'Decompressed successfully!' });
             }
 
             const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = downloadUrl;
-            
-            const contentDisposition = response.headers['content-disposition'];
-            let filename = mode === 'compress' ? 'compressed-file' : 'decompressed-file';
-            if (contentDisposition) {
-                const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-                if (filenameMatch && filenameMatch[1]) {
-                    filename = filenameMatch[1];
-                }
-            }
-            
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
@@ -118,21 +111,19 @@ export default function App() {
             window.URL.revokeObjectURL(downloadUrl);
 
         } catch (err) {
-            if (err.response) {
+            if (err.response && err.response.data) {
                 const reader = new FileReader();
                 reader.onload = () => {
                     try {
                         const errorJson = JSON.parse(reader.result);
-                        setError(errorJson.error || 'An error occurred on the server.');
+                        setError(errorJson.error || 'An unknown error occurred.');
                     } catch (e) {
-                         setError(`Server responded with status: ${err.response.status}`);
+                        setError('An unreadable error response was received.');
                     }
                 };
                 reader.readAsText(err.response.data);
-            } else if (err.request) {
-                setError('Network Error: Could not connect to the server. Please check the backend status.');
             } else {
-                setError(`An unexpected error occurred: ${err.message}`);
+                setError('Network Error: Could not connect to the server.');
             }
         } finally {
             setIsLoading(false);
@@ -196,16 +187,18 @@ export default function App() {
                             <div className="bg-slate-900/70 p-6 rounded-lg min-h-[250px] flex items-center justify-center">
                                 {isLoading && <p className="text-slate-400">Processing your file...</p>}
                                 {error && <p className="text-red-400 text-center">{error}</p>}
-                                {stats && !error && (mode === 'compress' ? (
-                                    <div className="grid grid-cols-2 gap-4 w-full">
-                                        <StatCard label="Original Size" value={formatBytes(stats.originalSize)} icon={<File className="text-blue-400" />} />
-                                        <StatCard label="Compressed Size" value={formatBytes(stats.compressedSize)} icon={<File className="text-green-400" />} />
-                                        <StatCard label="Processing Time" value={`${stats.processingTime} ms`} icon={<Activity className="text-yellow-400" />} />
-                                        <StatCard label="Ratio" value={`${stats.compressionRatio}%`} icon={<Download className="text-purple-400" />} />
-                                    </div>
-                                ) : (
-                                    <div className="text-center text-green-400"><h3 className="text-xl font-bold">File Decompressed!</h3><p>Your download has started.</p></div>
-                                ))}
+                                {stats && !error && (
+                                    'originalSize' in stats ? (
+                                        <div className="grid grid-cols-2 gap-4 w-full">
+                                            <StatCard label="Original Size" value={formatBytes(stats.originalSize)} icon={<File className="text-blue-400" />} />
+                                            <StatCard label="Compressed Size" value={formatBytes(stats.compressedSize)} icon={<File className="text-green-400" />} />
+                                            <StatCard label="Processing Time" value={`${stats.processingTime} ms`} icon={<Activity className="text-yellow-400" />} />
+                                            <StatCard label="Ratio" value={`${stats.compressionRatio}%`} icon={<Download className="text-purple-400" />} />
+                                        </div>
+                                    ) : (
+                                        <div className="text-center text-green-400"><h3 className="text-xl font-bold">File Decompressed!</h3><p>Your download has started.</p></div>
+                                    )
+                                )}
                                 {!isLoading && !error && !stats && <p className="text-slate-500">Statistics will appear here.</p>}
                             </div>
                             <AlgorithmInfo algorithm={algorithm} />
