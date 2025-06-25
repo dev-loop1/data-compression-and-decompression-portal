@@ -42,7 +42,7 @@ const AlgorithmInfo = ({ algorithm }) => {
 
 export default function App() {
     const [selectedFile, setSelectedFile] = useState(null);
-    const [algorithm, setAlgorithm] = useState('huffman'); // Default to Huffman
+    const [algorithm, setAlgorithm] = useState('huffman');
     const [stats, setStats] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -82,7 +82,7 @@ export default function App() {
         formData.append('file', selectedFile);
         formData.append('algorithm', algorithm);
 
-        const url = `https://data-compression-and-decompression-portal.onrender.com/${mode}`;
+        const url = `https://data-compression-and-decompression-portal.onrender.com/api/${mode}`;
 
         try {
             const response = await axios.post(url, formData, {
@@ -118,19 +118,21 @@ export default function App() {
             window.URL.revokeObjectURL(downloadUrl);
 
         } catch (err) {
-            if (err.response && err.response.data) {
+            if (err.response) {
                 const reader = new FileReader();
                 reader.onload = () => {
                     try {
                         const errorJson = JSON.parse(reader.result);
-                        setError(errorJson.error || 'An unknown error occurred.');
+                        setError(errorJson.error || 'An error occurred on the server.');
                     } catch (e) {
-                        setError('An unreadable error response was received from the server.');
+                         setError(`Server responded with status: ${err.response.status}`);
                     }
                 };
                 reader.readAsText(err.response.data);
+            } else if (err.request) {
+                setError('Network Error: Could not connect to the server. Please check the backend status.');
             } else {
-                setError(err.message || 'Failed to connect to the server.');
+                setError(`An unexpected error occurred: ${err.message}`);
             }
         } finally {
             setIsLoading(false);
@@ -150,7 +152,7 @@ export default function App() {
         <div className="bg-slate-900 min-h-screen text-white font-sans flex items-center justify-center p-4">
             <div className="w-full max-w-4xl mx-auto">
                 <header className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-cyan-400">Data Compression & Decompression Tool</h1>
+                    <h1 className="text-4xl font-bold text-cyan-400">Data Compression & Decompression Portal</h1>
                     <p className="text-slate-400 mt-2">Upload a file and choose the desired algorithm for compression or decompression</p>
                 </header>
 
